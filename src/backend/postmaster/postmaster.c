@@ -106,6 +106,7 @@
 #include "postmaster/postmaster.h"
 #include "postmaster/syslogger.h"
 #include "postmaster/walsummarizer.h"
+#include "access/heapcompress.h"
 #include "replication/logicallauncher.h"
 #include "replication/slotsync.h"
 #include "replication/walsender.h"
@@ -921,6 +922,11 @@ PostmasterMain(int argc, char *argv[])
 	 * before any modules had a chance to take the background worker slots.
 	 */
 	ApplyLauncherRegister();
+
+	/*
+	 * Register the hourly heap page compressor.
+	 */
+	HourlyHeapCompressorRegister();
 
 	/*
 	 * Register the shared memory needs of all core subsystems.

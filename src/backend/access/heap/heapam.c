@@ -32,6 +32,7 @@
 #include "postgres.h"
 
 #include "access/heapam.h"
+#include "access/heapcompress.h"
 #include "access/heaptoast.h"
 #include "access/hio.h"
 #include "access/multixact.h"
@@ -1015,6 +1016,26 @@ continue_page:
 			tuple->t_len = ItemIdGetLength(lpp);
 			ItemPointerSet(&(tuple->t_self), scan->rs_cblock, lineoff);
 
+			/*
+			 * If this tuple's data lives in the page's CompressedBlock,
+			 * reconstruct the full tuple into a palloc'd copy before
+			 * doing visibility checks (which need the real data length).
+			 */
+			if (tuple->t_data->t_infomask2 & HEAP_COMPRESSED_DATA)
+			{
+				HeapTuple	full = heap_decompress_tuple(page, lineoff);
+
+				if (full != NULL)
+				{
+					full->t_self = tuple->t_self;
+					full->t_tableOid = scan->rs_base.rs_rd->rd_id;
+					/* Stash in scan's ctup so caller sees the full tuple */
+					scan->rs_ctup = *full;
+					tuple = &scan->rs_ctup;
+					pfree(full);	/* t_data separately allocated, still valid */
+				}
+			}
+
 			visible = HeapTupleSatisfiesVisibility(tuple,
 												   scan->rs_base.rs_snapshot,
 												   scan->rs_cbuf);
@@ -1134,6 +1155,21 @@ continue_page:
 			tuple->t_data = (HeapTupleHeader) PageGetItem(page, lpp);
 			tuple->t_len = ItemIdGetLength(lpp);
 			ItemPointerSetOffsetNumber(&tuple->t_self, lineoff);
+
+			/* Reconstruct full tuple if data is in the CompressedBlock */
+			if (tuple->t_data->t_infomask2 & HEAP_COMPRESSED_DATA)
+			{
+				HeapTuple	full = heap_decompress_tuple(page, lineoff);
+
+				if (full != NULL)
+				{
+					full->t_self = tuple->t_self;
+					full->t_tableOid = scan->rs_base.rs_rd->rd_id;
+					scan->rs_ctup = *full;
+					pfree(full);	/* t_data separately allocated, still valid */
+					tuple = &scan->rs_ctup;
+				}
+			}
 
 			/* skip any tuples that don't match the scan key */
 			if (key != NULL &&
@@ -1740,6 +1776,29 @@ heap_fetch(Relation relation,
 	tuple->t_data = (HeapTupleHeader) PageGetItem(page, lp);
 	tuple->t_len = ItemIdGetLength(lp);
 	tuple->t_tableOid = RelationGetRelid(relation);
+
+	/*
+	 * If the tuple's data is stored in the page's CompressedBlock, reconstruct
+	 * the full tuple before doing any further processing.
+	 */
+	if (tuple->t_data->t_infomask2 & HEAP_COMPRESSED_DATA)
+	{
+		HeapTuple	full = heap_decompress_tuple(page, offnum);
+
+		if (full != NULL)
+		{
+			full->t_self = tuple->t_self;
+			full->t_tableOid = tuple->t_tableOid;
+			/*
+			 * Copy the reconstructed tuple data into the caller-supplied
+			 * HeapTupleData.  We cannot simply point tuple->t_data at the
+			 * palloc'd buffer because the caller may free or reuse it, so we
+			 * overwrite the fields that heap_fetch fills in.
+			 */
+			*tuple = *full;
+			pfree(full);
+		}
+	}
 
 	/*
 	 * check tuple visibility, then release lock

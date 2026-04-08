@@ -214,8 +214,11 @@ typedef PageHeaderData *PageHeader;
 #define PD_PAGE_FULL		0x0002	/* not enough free space for new tuple? */
 #define PD_ALL_VISIBLE		0x0004	/* all tuples on page are visible to
 									 * everyone */
+#define PD_PAGE_COMPRESSED	0x0008	/* page has been compressed by heap
+									 * compressor; tuple data is stored in
+									 * the CompressedBlock at pd_special */
 
-#define PD_VALID_FLAG_BITS	0x0007	/* OR of all valid pd_flags bits */
+#define PD_VALID_FLAG_BITS	0x000F	/* OR of all valid pd_flags bits */
 
 /*
  * Page layout version number 0 is for pre-7.3 Postgres releases.

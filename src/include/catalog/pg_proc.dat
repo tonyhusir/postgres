@@ -12919,4 +12919,9 @@
   proname => 'hashoid8extended', prorettype => 'int8',
   proargtypes => 'oid8 int8', prosrc => 'hashoid8extended' },
 
+
+{ oid => '8290', descr => 'compress all pages of a heap relation',
+  proname => 'heap_compress_table', provolatile => 'v', prorettype => 'int4',
+  proargtypes => 'text', prosrc => 'heap_compress_table' },
+
 ]

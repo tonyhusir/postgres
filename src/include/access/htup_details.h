@@ -289,7 +289,10 @@ HEAP_XMAX_IS_KEYSHR_LOCKED(uint16 infomask)
  * information stored in t_infomask2:
  */
 #define HEAP_NATTS_MASK			0x07FF	/* 11 bits for number of attributes */
-/* bits 0x1800 are available */
+/* bit 0x0800 is available */
+#define HEAP_COMPRESSED_DATA	0x1000	/* tuple data is stored in the page's
+										 * CompressedBlock; only header remains
+										 * at the normal tuple offset */
 #define HEAP_KEYS_UPDATED		0x2000	/* tuple was updated and key cols
 										 * modified, or tuple deleted */
 #define HEAP_HOT_UPDATED		0x4000	/* tuple was HOT-updated */
