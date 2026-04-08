@@ -9262,3 +9262,4 @@ HeapCheckForSerializableConflictOut(bool visible, Relation relation,
 
 	CheckForSerializableConflictOut(relation, xid, snapshot);
 }
+/* hcy test comment 2026-04-08 */
