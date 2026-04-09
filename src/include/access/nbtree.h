@@ -67,6 +67,10 @@ typedef struct BTPageOpaqueData
 	uint32		btpo_level;		/* tree level --- zero for leaf pages */
 	uint16		btpo_flags;		/* flag bits, see below */
 	BTCycleId	btpo_cycleid;	/* vacuum cycle ID of latest split */
+	/* merge tracking fields (set when BTP_RECEIVED_MERGE or BTP_MERGE_SOURCE is set) */
+	BlockNumber btpo_merge_partner;	/* merge: partner page blkno */
+	OffsetNumber btpo_merge_bound;	/* RECEIVED_MERGE: last offset of merged items */
+	uint16		btpo_merge_pad;		/* padding for alignment */
 } BTPageOpaqueData;
 
 typedef BTPageOpaqueData *BTPageOpaque;
@@ -83,6 +87,8 @@ typedef BTPageOpaqueData *BTPageOpaque;
 #define BTP_HAS_GARBAGE (1 << 6)	/* page has LP_DEAD tuples (deprecated) */
 #define BTP_INCOMPLETE_SPLIT (1 << 7)	/* right sibling's downlink is missing */
 #define BTP_HAS_FULLXID	(1 << 8)	/* contains BTDeletedPageData */
+#define BTP_RECEIVED_MERGE	(1 << 9)	/* page received items from left sibling merge */
+#define BTP_MERGE_SOURCE	(1 << 10)	/* page was merge source; data moved to right sibling */
 
 /*
  * The max allowed value of a cycle ID is a bit less than 64K.  This is
@@ -1071,6 +1077,7 @@ typedef struct BTScanOpaqueData
 	int		   *killedItems;	/* currPos.items indexes of killed items */
 	int			numKilled;		/* number of currently stored items */
 	bool		dropPin;		/* drop leaf pin before btgettuple returns? */
+	bool		prevPageWasIgnored; /* last page was skipped (P_IGNORE), not read */
 
 	/*
 	 * If we are doing an index-only scan, these are the tuple storage

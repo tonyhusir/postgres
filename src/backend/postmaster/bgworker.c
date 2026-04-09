@@ -12,6 +12,8 @@
 
 #include "postgres.h"
 
+#include "access/heapcompress.h"
+#include "access/nbtmerge.h"
 #include "access/parallel.h"
 #include "commands/repack.h"
 #include "libpq/pqsignal.h"
@@ -166,6 +168,14 @@ static const struct
 	{
 		.fn_name = "DataChecksumsWorkerMain",
 		.fn_addr = DataChecksumsWorkerMain
+	},
+	{
+		.fn_name = "HourlyHeapCompressorMain",
+		.fn_addr = HourlyHeapCompressorMain
+	},
+	{
+		.fn_name = "IndexLeafMergerMain",
+		.fn_addr = IndexLeafMergerMain
 	}
 };
 

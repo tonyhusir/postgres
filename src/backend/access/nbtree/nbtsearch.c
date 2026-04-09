@@ -15,6 +15,7 @@
 
 #include "postgres.h"
 
+#include "access/nbtmerge.h"
 #include "access/nbtree.h"
 #include "access/relscan.h"
 #include "access/xact.h"
@@ -1911,13 +1912,71 @@ _bt_readnextpage(IndexScanDesc scan, BlockNumber blkno,
 			/* see if there are any matches on this page */
 			if (ScanDirectionIsForward(dir))
 			{
+				OffsetNumber startOff = P_FIRSTDATAKEY(opaque);
+
+				/*
+				 * W1 fix: prevent duplicate reads after a leaf merge.
+				 *
+				 * If this page has BTP_RECEIVED_MERGE (it received items from
+				 * its former left sibling L), AND the previous page we actually
+				 * read data from was L (the merge source), skip the merged
+				 * items at the start of this page — they were already returned
+				 * from L before the merge happened.
+				 *
+				 * If prevPageWasIgnored is true, we arrived here by following
+				 * btpo_next through a P_IGNORE page; we never read L's data,
+				 * so we must NOT skip anything (W3: full read required).
+				 */
+				if ((opaque->btpo_flags & BTP_RECEIVED_MERGE) &&
+					!so->prevPageWasIgnored &&
+					opaque->btpo_merge_partner == so->currPos.currPage)
+				{
+					OffsetNumber bound = opaque->btpo_merge_bound;
+
+					if (OffsetNumberIsValid(bound) &&
+						bound >= P_FIRSTDATAKEY(opaque))
+					{
+						startOff = OffsetNumberNext(bound);
+						if (startOff > PageGetMaxOffsetNumber(page))
+						{
+							/* All items on this page came from L; nothing new */
+							blkno = so->currPos.nextPage;
+							so->prevPageWasIgnored = false;
+							_bt_relbuf(rel, so->currPos.buf);
+							seized = false;
+							continue;
+						}
+					}
+				}
+
+				so->prevPageWasIgnored = false;
 				/* note that this will clear moreRight if we can stop */
-				if (_bt_readpage(scan, dir, P_FIRSTDATAKEY(opaque), seized))
+				if (_bt_readpage(scan, dir, startOff, seized))
 					break;
 				blkno = so->currPos.nextPage;
 			}
 			else
 			{
+				/*
+				 * W2 fix: prevent data loss in backward scans after a merge.
+				 *
+				 * If this page is DELETED with BTP_MERGE_SOURCE, its data was
+				 * moved to btpo_next (= R).  We check:
+				 *   - Did we come from R (lastcurrblkno == btpo_next)?
+				 *   - Was R's btpo_prev still pointing to L when we cached it
+				 *     (so->currPos.prevPage == blkno, i.e., L's blkno)?
+				 *
+				 * If both conditions hold, we read R before the merge updated
+				 * R->btpo_prev; so we have R's pre-merge content and are
+				 * missing L's items (now at the start of R).  Re-read the
+				 * merged portion of R before continuing to LL.
+				 *
+				 * NOTE: P_IGNORE check happens BEFORE this branch, so we only
+				 * get here when !P_IGNORE.  The W2 case actually triggers in
+				 * the P_IGNORE branch below.
+				 */
+
+				so->prevPageWasIgnored = false;
 				/* note that this will clear moreLeft if we can stop */
 				if (_bt_readpage(scan, dir, PageGetMaxOffsetNumber(page), seized))
 					break;
@@ -1928,9 +1987,71 @@ _bt_readnextpage(IndexScanDesc scan, BlockNumber blkno,
 		{
 			/* _bt_readpage not called, so do all this for ourselves */
 			if (ScanDirectionIsForward(dir))
+			{
 				blkno = opaque->btpo_next;
+				so->prevPageWasIgnored = true;
+			}
 			else
-				blkno = opaque->btpo_prev;
+			{
+				/*
+				 * W2 fix (backward scan): if we encounter a DELETED page with
+				 * BTP_MERGE_SOURCE, its items were moved to btpo_next (R).
+				 * If we arrived from R (lastcurrblkno == btpo_next) and R's
+				 * prevPage link still pointed to this deleted page (meaning we
+				 * read R before R->btpo_prev was updated), we need to re-read
+				 * R's merged portion to avoid missing those items.
+				 */
+				if (P_ISDELETED(opaque) &&
+					(opaque->btpo_flags & BTP_MERGE_SOURCE) &&
+					opaque->btpo_merge_partner == lastcurrblkno &&
+					so->currPos.prevPage == blkno)
+				{
+					/*
+					 * We came from R (the merge destination), and our cached
+					 * prevPage == this deleted L's blkno, which means we read
+					 * R before R->btpo_prev was updated to LL.  We need to
+					 * re-read R's merged portion (the items that came from L).
+					 */
+					Buffer		rbuf;
+					Page		rpage;
+					BTPageOpaque ropaque;
+
+					rbuf = _bt_getbuf(rel, lastcurrblkno, BT_READ);
+					rpage = BufferGetPage(rbuf);
+					ropaque = BTPageGetOpaque(rpage);
+
+					if ((ropaque->btpo_flags & BTP_RECEIVED_MERGE) &&
+						ropaque->btpo_merge_partner == blkno &&
+						OffsetNumberIsValid(ropaque->btpo_merge_bound))
+					{
+						/*
+						 * Read the merged portion of R backward:
+						 * from btpo_merge_bound down to P_FIRSTDATAKEY.
+						 */
+						_bt_relbuf(rel, so->currPos.buf);
+						seized = false;
+						so->currPos.buf = rbuf;
+						if (_bt_readpage(scan, dir,
+										 ropaque->btpo_merge_bound, seized))
+						{
+							/* Successfully read merged items; return them */
+							break;
+						}
+						/* No matching items in merged portion; continue to LL */
+						blkno = opaque->btpo_prev;	/* = LL */
+					}
+					else
+					{
+						_bt_relbuf(rel, rbuf);
+						blkno = opaque->btpo_prev;
+					}
+				}
+				else
+				{
+					blkno = opaque->btpo_prev;
+				}
+				so->prevPageWasIgnored = true;
+			}
 			if (scan->parallel_scan != NULL)
 				_bt_parallel_release(scan, blkno, lastcurrblkno);
 		}

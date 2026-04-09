@@ -20,6 +20,8 @@ OBJS = \
 	checkpointer.o \
 	datachecksum_state.o \
 	fork_process.o \
+	heapcompressor.o \
+	indexmerger.o \
 	interrupt.o \
 	launch_backend.o \
 	pgarch.o \

@@ -1346,6 +1346,22 @@
   show_hook => 'show_in_hot_standby',
 },
 
+{ name => 'index_merge_fill_threshold', type => 'int', context => 'PGC_SIGHUP', group => 'VACUUM_AUTOVACUUM',
+  short_desc => 'Page fill percent below which index pages become merge candidates.',
+  variable => 'index_merge_fill_threshold',
+  boot_val => '50',
+  min => '10',
+  max => '90',
+},
+
+{ name => 'index_merge_interval', type => 'int', context => 'PGC_SIGHUP', group => 'VACUUM_AUTOVACUUM',
+  short_desc => 'Minutes between index leaf merge runs (0 to disable).',
+  variable => 'index_merge_interval',
+  boot_val => '60',
+  min => '1',
+  max => '3600',
+},
+
 { name => 'integer_datetimes', type => 'bool', context => 'PGC_INTERNAL', group => 'PRESET_OPTIONS',
   short_desc => 'Shows whether datetimes are integer based.',
   flags => 'GUC_REPORT | GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE',
@@ -3626,5 +3642,4 @@
   variable => 'zero_damaged_pages',
   boot_val => 'false',
 },
-
 ]

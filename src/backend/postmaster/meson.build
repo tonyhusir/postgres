@@ -8,6 +8,7 @@ backend_sources += files(
   'checkpointer.c',
   'datachecksum_state.c',
   'fork_process.c',
+  'indexmerger.c',
   'interrupt.c',
   'launch_backend.c',
   'pgarch.c',
