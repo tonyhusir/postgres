@@ -12919,4 +12919,12 @@
   proname => 'hashoid8extended', prorettype => 'int8',
   proargtypes => 'oid8 int8', prosrc => 'hashoid8extended' },
 
+{ oid => '9960', descr => 'generate jemalloc heap leak report as HTML (output dir from GUC)',
+  proname => 'pg_jemalloc_leak_report', provolatile => 'v', prorettype => 'text',
+  proargtypes => '', prosrc => 'pg_jemalloc_leak_report' },
+
+{ oid => '9961', descr => 'generate jemalloc heap leak report as HTML to specified path',
+  proname => 'pg_jemalloc_leak_report', provolatile => 'v', prorettype => 'text',
+  proargtypes => 'text', prosrc => 'pg_jemalloc_leak_report' },
+
 ]

@@ -27,6 +27,8 @@
  */
 #include "postgres.h"
 
+#include <stdlib.h>
+
 #include "access/relscan.h"
 #include "access/tableam.h"
 #include "executor/execParallel.h"
@@ -36,6 +38,19 @@
 #include "utils/rel.h"
 
 static TupleTableSlot *SeqNext(SeqScanState *node);
+
+/*
+ * DELIBERATE LEAK FOR TESTING jemalloc LEAK DETECTION.
+ * Every SeqScan initialization leaks 4096 bytes via malloc (no free).
+ * Remove this function when done testing.
+ */
+void __attribute__((noinline))
+seqscan_deliberate_leak(void)
+{
+	/* Deliberate leak: 2 MB, never freed */
+	// void *p = malloc(2 * 1024 * 1024);
+	// (void) p;
+}
 
 /* ----------------------------------------------------------------
  *						Scan Support
@@ -227,6 +242,9 @@ ExecInitSeqScan(SeqScan *node, EState *estate, int eflags)
 	 */
 	Assert(outerPlan(node) == NULL);
 	Assert(innerPlan(node) == NULL);
+
+	/* DELIBERATE LEAK for jemalloc testing — remove when done */
+	seqscan_deliberate_leak();
 
 	/*
 	 * create state structure

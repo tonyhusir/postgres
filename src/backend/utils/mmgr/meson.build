@@ -3,6 +3,8 @@
 backend_sources += files(
   'alignedalloc.c',
   'aset.c',
+  # jemalloc_leak.c is added conditionally by the top-level meson.build
+  # when -Dwith_jemalloc=true is specified.
   'bump.c',
   'dsa.c',
   'freepage.c',

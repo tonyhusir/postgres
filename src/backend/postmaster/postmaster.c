@@ -124,9 +124,9 @@
 #include "utils/timestamp.h"
 #include "utils/varlena.h"
 
-#ifdef EXEC_BACKEND
-#include "access/heapcompress.h"
 #include "access/nbtmerge.h"
+
+#ifdef EXEC_BACKEND
 #include "common/file_utils.h"
 #include "storage/pg_shmem.h"
 #endif
@@ -923,7 +923,6 @@ PostmasterMain(int argc, char *argv[])
 	 * before any modules had a chance to take the background worker slots.
 	 */
 	ApplyLauncherRegister();
-	HourlyHeapCompressorRegister();
 	IndexLeafMergerRegister();
 
 	/*

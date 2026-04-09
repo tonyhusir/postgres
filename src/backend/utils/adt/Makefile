@@ -60,6 +60,7 @@ OBJS = \
 	jsonpath_exec.o \
 	jsonpath_gram.o \
 	jsonpath_scan.o \
+	jemalloc_funcs.o \
 	like.o \
 	like_support.o \
 	lockfuncs.o \

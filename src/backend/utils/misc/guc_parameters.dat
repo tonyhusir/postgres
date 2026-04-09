@@ -1431,6 +1431,21 @@
   boot_val => 'false',
 },
 
+{ name => 'jemalloc_leak_detection', type => 'bool', context => 'PGC_SUSET', group => 'DEVELOPER_OPTIONS',
+  short_desc => 'Enable jemalloc heap profiling for leak detection in this backend.',
+  flags => 'GUC_NOT_IN_SAMPLE',
+  variable => 'jemalloc_leak_detection',
+  boot_val => 'false',
+  assign_hook => 'assign_jemalloc_leak_detection',
+},
+
+{ name => 'jemalloc_leak_dump_dir', type => 'string', context => 'PGC_SIGHUP', group => 'DEVELOPER_OPTIONS',
+  short_desc => 'Directory for jemalloc HTML leak report files.',
+  flags => 'GUC_NOT_IN_SAMPLE | GUC_SUPERUSER_ONLY',
+  variable => 'jemalloc_leak_dump_dir',
+  boot_val => '"/tmp"',
+},
+
 { name => 'jit', type => 'bool', context => 'PGC_USERSET', group => 'QUERY_TUNING_OTHER',
   short_desc => 'Allow JIT compilation.',
   flags => 'GUC_EXPLAIN',

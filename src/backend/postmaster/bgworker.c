@@ -12,7 +12,6 @@
 
 #include "postgres.h"
 
-#include "access/heapcompress.h"
 #include "access/nbtmerge.h"
 #include "access/parallel.h"
 #include "commands/repack.h"
@@ -150,10 +149,6 @@ static const struct
 		.fn_addr = ParallelWorkerMain
 	},
 	{
-		.fn_name = "RepackWorkerMain",
-		.fn_addr = RepackWorkerMain
-	},
-	{
 		.fn_name = "SequenceSyncWorkerMain",
 		.fn_addr = SequenceSyncWorkerMain
 	},
@@ -170,8 +165,8 @@ static const struct
 		.fn_addr = DataChecksumsWorkerMain
 	},
 	{
-		.fn_name = "HourlyHeapCompressorMain",
-		.fn_addr = HourlyHeapCompressorMain
+		.fn_name = "RepackWorkerMain",
+		.fn_addr = RepackWorkerMain
 	},
 	{
 		.fn_name = "IndexLeafMergerMain",

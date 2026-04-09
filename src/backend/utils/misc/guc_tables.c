@@ -30,6 +30,10 @@
 #endif
 
 #include "access/commit_ts.h"
+#include "access/nbtmerge.h"
+#ifdef USE_JEMALLOC
+#include "utils/jemalloc_leak.h"
+#endif
 #include "access/gin.h"
 #include "access/slru.h"
 #include "access/toast_compression.h"
